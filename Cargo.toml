@@ -1,7 +1,7 @@
 [package]
 name = "lockbox"
 version = "0.1.0"
-authors = ["Matt Silbernagel <silbermm@gmail.com>"]
+authors = ["Matt Silbernagel <matt@silbernagel.dev>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,3 +12,4 @@ rand = "0.7.2"
 rand_core = "0.5.1"
 console = "0.9.1"
 sodiumoxide = "0.2.5"
+dirs = "2.0"

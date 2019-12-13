@@ -10,10 +10,15 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
+mod encryption;
+
 fn main() {
     let args = Cli::from_args();    
     let content = std::fs::read_to_string(&args.password_list)
         .expect("could not read file");
+
+
+    encryption::generate_keys().expect("unable to write keys to file");
 
     match build_rsa_keypair() {
         Ok(()) => println!("file write success"),
@@ -62,26 +67,41 @@ fn find_line(content: &str, number: &str) -> String {
 fn build_rsa_keypair() -> Result<(), io::Error> {
     let (ourpk, oursk) = box_::gen_keypair();
     let nonce = box_::gen_nonce();
+
+    // write public key to file
     let sodiumoxide::crypto::box_::PublicKey(bytes) = ourpk;
-
-    let plaintext = b"some data";
-    let ciphertext = box_::seal(plaintext, &nonce, &ourpk, &oursk);
-
     let mut file = File::create("public_key")?;
     file.write_all(&bytes)?;
 
+    // write secret key to file
+    let sodiumoxide::crypto::box_::SecretKey(sbytes) = oursk;
+    let mut pfile = File::create("private_key")?;
+    pfile.write_all(&sbytes)?;
+
+    // grab key back out of file
     let mut file = File::open("public_key")?;
     let mut buffer = Vec::<u8>::new();
     file.read_to_end(&mut buffer)?;
-
     let mut pubkey_bytes = [0u8; PUBLICKEYBYTES];
     for i in 0..PUBLICKEYBYTES {
         pubkey_bytes[i] = buffer[i];
     }
-
     let newpk = PublicKey(pubkey_bytes);
 
-    let their_plaintext = box_::open(&ciphertext, &nonce, &newpk, &oursk).unwrap();
+    // encrypt some text
+    let plaintext = b"some data";
+    let ciphertext = box_::seal(plaintext, &nonce, &ourpk, &oursk);
+
+    // write encrypted text to file
+    let mut cfile = File::create("secret")?;
+    cfile.write_all(&ciphertext)?;
+
+    // read encrypted file back in
+    let mut encrypted = File::open("secret")?;
+    let mut ciphertext2 = Vec::<u8>::new();
+    encrypted.read_to_end(&mut ciphertext2)?;
+
+    let their_plaintext = box_::open(&ciphertext2, &nonce, &newpk, &oursk).unwrap();
     assert!(plaintext == &their_plaintext[..]);
 
     Ok(())
