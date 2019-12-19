@@ -18,12 +18,7 @@ fn main() {
         .expect("could not read file");
 
 
-    encryption::generate_keys().expect("unable to write keys to file");
-
-    match build_rsa_keypair() {
-        Ok(()) => println!("file write success"),
-        Err(e) => println!("file write err {:?}", e)
-    }
+    let _ = encryption::generate_keys().expect("unable to write keys to file");
 
     let _p : Vec<String> = (0..5).map(|_| {
         let num : String = random_number();
