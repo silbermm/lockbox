@@ -3,29 +3,37 @@ extern crate sodiumoxide;
 
 use structopt::StructOpt;
 use rand::{Rng};
-use console::style;
-use sodiumoxide::crypto::box_;
-use sodiumoxide::crypto::box_::*;
-use std::io;
-use std::io::prelude::*;
-use std::fs::File;
 
 mod encryption;
 
 fn main() {
     let args = Cli::from_args();    
-    let content = std::fs::read_to_string(&args.password_list)
-        .expect("could not read file");
 
+    if args.generate_keys {
+        println!("Generating new encryption keys");
+        match encryption::generate_keys() {
+            Ok(_) => println!("Keys generated and saved in your home directory"),
+            Err(_) => println!("Unable to generate keys")
+        }
+    } else {
+        let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
 
-    let _ = encryption::generate_keys().expect("unable to write keys to file");
+        let content = include_str!("diceware.wordlist.asc");
 
-    let _p : Vec<String> = (0..5).map(|_| {
-        let num : String = random_number();
-        let word = find_line(&content, &num);
-        print!("{}", style(&word).white());
-        word
-    }).collect();
+        let p : Vec<String> = (0..5).map(|_| {
+            let num : String = random_number();
+            find_line(&content, &num)
+        }).collect();
+        let password: String = p.into_iter().collect();  
+        println!("{}", password);
+
+        let edata = cryptobox.encrypt(&password);
+
+        match cryptobox.decrypt(edata) {
+            Ok(p) => println!("password = {}", p),
+            Err(r) => println!("error = {}", r)
+        }
+    }
 }
 
 fn random_number() -> String {
@@ -59,52 +67,9 @@ fn find_line(content: &str, number: &str) -> String {
     }
 }
 
-fn build_rsa_keypair() -> Result<(), io::Error> {
-    let (ourpk, oursk) = box_::gen_keypair();
-    let nonce = box_::gen_nonce();
-
-    // write public key to file
-    let sodiumoxide::crypto::box_::PublicKey(bytes) = ourpk;
-    let mut file = File::create("public_key")?;
-    file.write_all(&bytes)?;
-
-    // write secret key to file
-    let sodiumoxide::crypto::box_::SecretKey(sbytes) = oursk;
-    let mut pfile = File::create("private_key")?;
-    pfile.write_all(&sbytes)?;
-
-    // grab key back out of file
-    let mut file = File::open("public_key")?;
-    let mut buffer = Vec::<u8>::new();
-    file.read_to_end(&mut buffer)?;
-    let mut pubkey_bytes = [0u8; PUBLICKEYBYTES];
-    for i in 0..PUBLICKEYBYTES {
-        pubkey_bytes[i] = buffer[i];
-    }
-    let newpk = PublicKey(pubkey_bytes);
-
-    // encrypt some text
-    let plaintext = b"some data";
-    let ciphertext = box_::seal(plaintext, &nonce, &ourpk, &oursk);
-
-    // write encrypted text to file
-    let mut cfile = File::create("secret")?;
-    cfile.write_all(&ciphertext)?;
-
-    // read encrypted file back in
-    let mut encrypted = File::open("secret")?;
-    let mut ciphertext2 = Vec::<u8>::new();
-    encrypted.read_to_end(&mut ciphertext2)?;
-
-    let their_plaintext = box_::open(&ciphertext2, &nonce, &newpk, &oursk).unwrap();
-    assert!(plaintext == &their_plaintext[..]);
-
-    Ok(())
-}
-
 #[derive(StructOpt)]
+#[structopt(rename_all = "kebab-case")] 
 struct Cli {
-    /// The path to the file to read
-    #[structopt(parse(from_os_str), short = "p", long = "password_list")]
-    password_list: std::path::PathBuf,
+    #[structopt(short = "g", long, help = "Generates new encryption keys")]
+    generate_keys: bool
 }
