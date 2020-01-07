@@ -1,75 +1,64 @@
 extern crate rand;
 extern crate sodiumoxide;
 
+use std::io::ErrorKind;
 use structopt::StructOpt;
-use rand::{Rng};
 
+mod storage;
 mod encryption;
+mod password;
 
 fn main() {
-    let args = Cli::from_args();    
+    let args = Cli::from_args();
+
+    match storage::initialize() {
+        Ok(_) => println!("Database initialized"),
+        Err(_) => println!("Unable to initialize database")
+    };
 
     if args.generate_keys {
-        println!("Generating new encryption keys");
         match encryption::generate_keys() {
             Ok(_) => println!("Keys generated and saved in your home directory"),
+            Err(ref e) if e.kind() == ErrorKind::AlreadyExists => println!("Encryption keys already exist, regenerating will likely cause data loss. Use -f if you want to force regeneration."),
             Err(_) => println!("Unable to generate keys")
         }
-    } else {
+    }
+
+    if args.generate_password {
         let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
 
-        let content = include_str!("diceware.wordlist.asc");
+        let p: Vec<String> = password::generate(6);
+        let password: String = p.into_iter().collect();
 
-        let p : Vec<String> = (0..5).map(|_| {
-            let num : String = random_number();
-            find_line(&content, &num)
-        }).collect();
-        let password: String = p.into_iter().collect();  
         println!("{}", password);
 
         let edata = cryptobox.encrypt(&password);
 
-        match cryptobox.decrypt(edata) {
-            Ok(p) => println!("password = {}", p),
-            Err(r) => println!("error = {}", r)
+        match edata.save() {
+            Ok(()) => println!("Data saved to file"),
+            Err(r) => println!("Unable to save password to file - error = {}", r),
         }
     }
-}
 
-fn random_number() -> String {
-    const CHARSET: &[u8] = b"123456";
-
-    const PASSWORD_LEN: usize = 5;
-    let mut rng = rand::thread_rng();
-
-    (0..PASSWORD_LEN)
-        .map(|_| {
-            let idx = rng.gen_range(0, CHARSET.len());
-            CHARSET[idx] as char
-        })
-    .collect()
-}
-
-fn find_line(content: &str, number: &str) -> String {
-    let mut iter = content.lines();
-    let result = iter.find(|&x| x.starts_with(number));
-    match result {
-        Some(line) => {
-            let v : Vec<&str> = line.split("\t").collect();
-            match v.last() {
-                Some(n) => { n.to_string() }
-                None => { "".to_string() }
-            }
-        }
-        None => {
-            "".to_string()
+    if args.show {
+        let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
+        let edata = encryption::load_passwords().expect("Unable to load passwords");
+        match cryptobox.decrypt(edata) {
+            Ok(p) => println!("passwords = {}", p),
+            Err(r) => println!("error = {}", r),
         }
     }
 }
 
 #[derive(StructOpt)]
-#[structopt(rename_all = "kebab-case")] 
+#[structopt(rename_all = "kebab-case")]
 struct Cli {
     #[structopt(short = "g", long, help = "Generates new encryption keys")]
-    generate_keys: bool
+    generate_keys: bool,
+
+    #[structopt(short = "p", long = "password", help = "Generates a new password")]
+    generate_password: bool,
+
+    #[structopt(short = "s", long = "show", help = "Show Passwords")]
+    show: bool,
 }

@@ -1,28 +1,42 @@
-extern crate sodiumoxide;
 extern crate dirs;
+extern crate sodiumoxide;
 
-use std::io;
+use base64;
 use sodiumoxide::crypto::box_;
 use sodiumoxide::crypto::box_::*;
-use std::io::prelude::*;
-use std::string::*;
+use std::fs;
 use std::fs::File;
+use std::io;
+use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
-    
+use std::string::*;
+
 static P_KEY_FILE: &str = "/.lockbox/public_key";
 static S_KEY_FILE: &str = "/.lockbox/secret_key";
 static NONCE_FILE: &str = "/.lockbox/nonce";
 
+static P_FILE: &str = "/.lockbox/passwords";
+
 #[derive(Debug)]
 pub struct EncryptedData {
-    data: Vec<u8>
+    data: Vec<u8>,
+}
+
+impl EncryptedData {
+    pub fn save(&self) -> Result<(), io::Error> {
+        map_home_directory(|home| -> Result<(), io::Error> {
+            let encoded = base64::encode(&self.data);
+            fs::write(format!("{}{}", home, P_FILE), &encoded)?;
+            Ok(())
+        })
+    }
 }
 
 #[derive(Debug)]
 pub struct CryptoBox {
     pkey: PublicKey,
     skey: SecretKey,
-    nonce: Nonce
+    nonce: Nonce,
 }
 
 impl CryptoBox {
@@ -38,42 +52,55 @@ impl CryptoBox {
         match box_::open(&data.data, &self.nonce, &self.pkey, &self.skey) {
             Ok(d) => match String::from_utf8(d) {
                 Ok(res) => Ok(res),
-                Err(_) => Err("Unable to convert from utf8")
-            }
-            Err(_) => return Err("Unable to decrypt data")
+                Err(_) => Err("Unable to convert from utf8"),
+            },
+            Err(_) => return Err("Unable to decrypt data"),
         }
     }
 }
 
+// TODO: Store keys base64 encoded instead of binary
 pub fn generate_keys() -> Result<CryptoBox, io::Error> {
     map_home_directory(|home| -> Result<CryptoBox, io::Error> {
+        // do keys already exist?
+        let pub_file_name = format!("{}{}", home, P_KEY_FILE);
+        let priv_file_name = format!("{}{}", home, S_KEY_FILE);
+        let nonce_file_name = format!("{}{}", home, NONCE_FILE);
+
+        err_if_keys_exist(vec![
+            pub_file_name.to_owned(),
+            priv_file_name.to_owned(),
+            nonce_file_name.to_owned(),
+        ])?;
+
         let (ourpk, oursk) = box_::gen_keypair();
 
+        let mut pub_file = File::create(pub_file_name)?;
         let sodiumoxide::crypto::box_::PublicKey(bytes) = ourpk;
-        let mut file = File::create(home.clone() + P_KEY_FILE)?;
-        file.write_all(&bytes)?;
+        pub_file.write_all(&bytes)?;
 
+        let mut private_file = File::create(priv_file_name)?;
         let sodiumoxide::crypto::box_::SecretKey(sbytes) = oursk;
-        let mut pfile = File::create(home.clone() + S_KEY_FILE)?;
-        pfile.write_all(&sbytes)?;
+        private_file.write_all(&sbytes)?;
 
         let nonce = box_::gen_nonce();
+        let mut nonce_file = File::create(nonce_file_name)?;
         let sodiumoxide::crypto::box_::Nonce(nbytes) = nonce;
-        let mut nonce_file = File::create(home + NONCE_FILE)?;
         nonce_file.write_all(&nbytes)?;
 
         Ok(CryptoBox {
             pkey: ourpk,
             skey: oursk,
-            nonce
+            nonce,
         })
     })
 }
 
 pub fn load_keys() -> Result<CryptoBox, io::Error> {
     map_home_directory(|home| -> Result<CryptoBox, io::Error> {
+        let p_file = format!("{}{}", home, P_KEY_FILE);
 
-        let mut file = File::open(home.clone() + P_KEY_FILE)?;
+        let mut file = File::open(p_file)?;
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer)?;
 
@@ -83,7 +110,8 @@ pub fn load_keys() -> Result<CryptoBox, io::Error> {
         }
         let pkey = PublicKey(pubkey_bytes);
 
-        let mut file = File::open(home.clone() + S_KEY_FILE)?;
+        let s_file = format!("{}{}", home, S_KEY_FILE);
+        let mut file = File::open(s_file)?;
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer)?;
 
@@ -93,7 +121,8 @@ pub fn load_keys() -> Result<CryptoBox, io::Error> {
         }
         let skey = SecretKey(secretkey_bytes);
 
-        let mut file = File::open(home + NONCE_FILE)?;
+        let n_file = format!("{}{}", home, NONCE_FILE);
+        let mut file = File::open(n_file)?;
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer)?;
 
@@ -103,18 +132,44 @@ pub fn load_keys() -> Result<CryptoBox, io::Error> {
         }
         let nonce = Nonce(nonce_bytes);
 
-
-        Ok(CryptoBox {
-            pkey,
-            skey,
-            nonce
-        })
+        Ok(CryptoBox { pkey, skey, nonce })
     })
 }
 
-fn map_home_directory<P>(f: P) -> Result<CryptoBox, io::Error> where P: Fn(String) -> Result<CryptoBox, io::Error> {
+pub fn load_passwords() -> Result<EncryptedData, io::Error> {
+    map_home_directory(|home| -> Result<EncryptedData, io::Error> {
+        let mut file = File::open(format!("{}{}", home, P_FILE))?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+
+        match base64::decode(&contents) {
+            Ok(data) => Ok(EncryptedData { data }),
+            Err(_) => Err(Error::new(ErrorKind::Other, "Unable to decode passwords")),
+        }
+    })
+}
+
+fn map_home_directory<P, Q>(f: P) -> Result<Q, io::Error>
+where
+    P: Fn(&str) -> Result<Q, io::Error>,
+{
     match dirs::home_dir() {
-        Some(home) => f(home.display().to_string()),
-        None => Err(Error::new(ErrorKind::Other, "Unable to locate home directory"))
+        Some(home) => f(&home.display().to_string()),
+        None => Err(Error::new(
+            ErrorKind::Other,
+            "Unable to locate home directory",
+        )),
+    }
+}
+
+fn err_if_keys_exist(key_paths: std::vec::Vec<String>) -> Result<(), io::Error> {
+    let r: Vec<bool> = key_paths
+        .into_iter()
+        .map(|p| std::path::Path::new(&p).exists())
+        .collect();
+
+    match r.into_iter().find(|&x| x) {
+        Some(_) => Err(Error::new(ErrorKind::AlreadyExists, "Keys Exist")),
+        None => Ok(()),
     }
 }
