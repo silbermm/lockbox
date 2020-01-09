@@ -30,6 +30,10 @@ impl EncryptedData {
             Ok(())
         })
     }
+
+    pub fn to_string(&self) -> String {
+        base64::encode(&self.data)
+    }
 }
 
 #[derive(Debug)]
@@ -147,6 +151,13 @@ pub fn load_passwords() -> Result<EncryptedData, io::Error> {
             Err(_) => Err(Error::new(ErrorKind::Other, "Unable to decode passwords")),
         }
     })
+}
+
+pub fn load_from_encoded(encoded: String) -> Result<EncryptedData, io::Error> {
+    match base64::decode(&encoded) {
+        Ok(data) => Ok(EncryptedData { data }),
+        Err(_) => Err(Error::new(ErrorKind::Other, "Unable to decode passwords")),
+    }
 }
 
 fn map_home_directory<P, Q>(f: P) -> Result<Q, io::Error>

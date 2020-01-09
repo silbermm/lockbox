@@ -1,6 +1,7 @@
 extern crate rand;
 extern crate sodiumoxide;
 
+use std::io::{self, Write};
 use std::io::ErrorKind;
 use structopt::StructOpt;
 
@@ -10,11 +11,6 @@ mod password;
 
 fn main() {
     let args = Cli::from_args();
-
-    match storage::initialize() {
-        Ok(_) => println!("Database initialized"),
-        Err(_) => println!("Unable to initialize database")
-    };
 
     if args.generate_keys {
         match encryption::generate_keys() {
@@ -30,22 +26,44 @@ fn main() {
         let p: Vec<String> = password::generate(6);
         let password: String = p.into_iter().collect();
 
-        println!("{}", password);
+        println!("{} ", password);
+        print!("Save this password? (Y/n) ");
+        io::stdout().flush().unwrap();
 
-        let edata = cryptobox.encrypt(&password);
+        let mut input = String::new();
+        let _ = io::stdin().read_line(&mut input);
 
-        match edata.save() {
-            Ok(()) => println!("Data saved to file"),
-            Err(r) => println!("Unable to save password to file - error = {}", r),
+        if input == "\n" || input == "Y\n"  || input == "y\n" {
+            let edata = cryptobox.encrypt(&password);
+
+            match storage::initialize() {
+                Ok(conn) => {
+                    println!("Database initialized");
+                    let account = build_account(edata);
+                    let _ = storage::add(conn, account).unwrap();
+                },
+                Err(_) => println!("Unable to initialize database")
+            };
+        } else {
+            println!("don't save password");
         }
     }
 
     if args.show {
+        println!("show passwords");
         let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
-        let edata = encryption::load_passwords().expect("Unable to load passwords");
-        match cryptobox.decrypt(edata) {
-            Ok(p) => println!("passwords = {}", p),
-            Err(r) => println!("error = {}", r),
+        match storage::initialize() {
+            Ok(conn) => {
+                let accounts = storage::find_by_account(conn, String::from("aws.com")).unwrap();
+                println!("accounts {:?}", accounts);
+                for account in accounts {
+                    let encrypted_data = encryption::load_from_encoded(account.password).unwrap();
+                    println!("account name = {}", account.name);
+                    println!("username = {}", account.username);
+                    println!("password = {}", cryptobox.decrypt(encrypted_data).unwrap())
+                }
+            },
+            Err(_) => println!("Unable to connect to password database")
         }
     }
 }
@@ -61,4 +79,24 @@ struct Cli {
 
     #[structopt(short = "s", long = "show", help = "Show Passwords")]
     show: bool,
+}
+
+fn build_account(e: encryption::EncryptedData) -> storage::Account {
+    print!("What account is this for (i.e. google.com)? ");
+    io::stdout().flush().unwrap();
+
+    let mut account = String::new();
+    let _ = io::stdin().read_line(&mut account);
+
+    print!("What is username should we save with this? ");
+    io::stdout().flush().unwrap();
+
+    let mut username = String::new();
+    let _ = io::stdin().read_line(&mut username);
+
+    storage::Account {
+        name: account.trim().to_string(),
+        username: username.trim().to_string(),
+        password: e.to_string()
+    }
 }
