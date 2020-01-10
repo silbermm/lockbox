@@ -4,7 +4,7 @@ extern crate dirs;
 use rusqlite::{Connection, Result, Error, named_params};
 use rusqlite::NO_PARAMS;
 
-static CREATE_TABLE_Q: &str = "create table if not exists passwords ( id integer primary key, account text not null, username text not null, password text not null, inserted_at text, updated_at text)";
+static CREATE_TABLE_Q: &str = "create table if not exists passwords ( id integer primary key, account text not null, username text not null, password text not null, inserted_at text, updated_at text, unique (account, username))";
 
 pub fn initialize() -> Result<Connection> {
     let home = get_home_directory()?;

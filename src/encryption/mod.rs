@@ -4,7 +4,6 @@ extern crate sodiumoxide;
 use base64;
 use sodiumoxide::crypto::box_;
 use sodiumoxide::crypto::box_::*;
-use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -15,22 +14,12 @@ static P_KEY_FILE: &str = "/.lockbox/public_key";
 static S_KEY_FILE: &str = "/.lockbox/secret_key";
 static NONCE_FILE: &str = "/.lockbox/nonce";
 
-static P_FILE: &str = "/.lockbox/passwords";
-
 #[derive(Debug)]
 pub struct EncryptedData {
     data: Vec<u8>,
 }
 
 impl EncryptedData {
-    pub fn save(&self) -> Result<(), io::Error> {
-        map_home_directory(|home| -> Result<(), io::Error> {
-            let encoded = base64::encode(&self.data);
-            fs::write(format!("{}{}", home, P_FILE), &encoded)?;
-            Ok(())
-        })
-    }
-
     pub fn to_string(&self) -> String {
         base64::encode(&self.data)
     }
@@ -137,19 +126,6 @@ pub fn load_keys() -> Result<CryptoBox, io::Error> {
         let nonce = Nonce(nonce_bytes);
 
         Ok(CryptoBox { pkey, skey, nonce })
-    })
-}
-
-pub fn load_passwords() -> Result<EncryptedData, io::Error> {
-    map_home_directory(|home| -> Result<EncryptedData, io::Error> {
-        let mut file = File::open(format!("{}{}", home, P_FILE))?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-
-        match base64::decode(&contents) {
-            Ok(data) => Ok(EncryptedData { data }),
-            Err(_) => Err(Error::new(ErrorKind::Other, "Unable to decode passwords")),
-        }
     })
 }
 

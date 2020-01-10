@@ -50,12 +50,10 @@ fn main() {
     }
 
     if args.show {
-        println!("show passwords");
         let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
         match storage::initialize() {
             Ok(conn) => {
-                let accounts = storage::find_by_account(conn, String::from("aws.com")).unwrap();
-                println!("accounts {:?}", accounts);
+                let accounts = storage::find_by_account(conn, String::from("gmail.com")).unwrap();
                 for account in accounts {
                     let encrypted_data = encryption::load_from_encoded(account.password).unwrap();
                     println!("account name = {}", account.name);
