@@ -49,16 +49,30 @@ fn main() {
         }
     }
 
-    if args.show {
+    if args.accounts {
+        println!();
+        match storage::initialize() {
+            Ok(conn) => {
+                let accounts = storage::find_accounts(conn).unwrap();
+                for account in accounts {
+                    println!("{}", account);
+                }
+            },
+            Err(_) => println!("Unable to connect to password database")
+        }
+        println!();
+    } else if args.account.is_some() {
+        println!();
         let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
         match storage::initialize() {
             Ok(conn) => {
-                let accounts = storage::find_by_account(conn, String::from("gmail.com")).unwrap();
+                let accounts = storage::find_by_account(conn, String::from(args.account.unwrap())).unwrap();
                 for account in accounts {
                     let encrypted_data = encryption::load_from_encoded(account.password).unwrap();
                     println!("account name = {}", account.name);
                     println!("username = {}", account.username);
-                    println!("password = {}", cryptobox.decrypt(encrypted_data).unwrap())
+                    println!("password = {}", cryptobox.decrypt(encrypted_data).unwrap());
+                    println!()
                 }
             },
             Err(_) => println!("Unable to connect to password database")
@@ -72,11 +86,17 @@ struct Cli {
     #[structopt(short = "g", long, help = "Generates new encryption keys")]
     generate_keys: bool,
 
-    #[structopt(short = "p", long = "password", help = "Generates a new password")]
+    #[structopt(short = "p", long = "generate-password", help = "Generates a new password")]
     generate_password: bool,
 
-    #[structopt(short = "s", long = "show", help = "Show Passwords")]
-    show: bool,
+
+    #[structopt(short = "a", long = "show-accounts", help = "Show saved accounts")]
+    accounts: bool,
+
+    #[structopt(short = "s", long = "show-password", help = "Show password for a specific account")]
+    account: Option<String>,
+
+
 }
 
 fn build_account(e: encryption::EncryptedData) -> storage::Account {

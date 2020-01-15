@@ -23,6 +23,14 @@ pub fn add(conn: Connection, account: Account) -> Result<()> {
     Ok(())
 }
 
+pub fn find_accounts(conn: Connection) -> Result<std::vec::Vec<String>> {
+    let mut stmt = conn.prepare("SELECT DISTINCT p.account from passwords p")?;
+    let accounts = stmt.query_map(NO_PARAMS, |row|
+        Ok(row.get(0)?)
+    )?;
+    Ok(accounts.map(|a| a.unwrap()).collect())
+}
+
 pub fn find_by_account(conn: Connection, account_name: String) -> Result<std::vec::Vec<Account>> {
    let mut stmt = conn.prepare("SELECT p.account, p.username, p.password from passwords p where p.account like :account")?;
    let passwords = stmt.query_map_named(named_params!{ ":account": account_name }, |row|
