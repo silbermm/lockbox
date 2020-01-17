@@ -9,7 +9,7 @@ mod storage;
 mod encryption;
 mod password;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::from_args();
 
     if args.generate_keys {
@@ -21,14 +21,14 @@ fn main() {
     }
 
     if args.generate_password {
-        let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
+        let cryptobox = encryption::load_keys()?;
 
         let p: Vec<String> = password::generate(6);
         let password: String = p.into_iter().collect();
 
         println!("{} ", password);
         print!("Save this password? (Y/n) ");
-        io::stdout().flush().unwrap();
+        io::stdout().flush()?;
 
         let mut input = String::new();
         let _ = io::stdin().read_line(&mut input);
@@ -36,14 +36,11 @@ fn main() {
         if input == "\n" || input == "Y\n"  || input == "y\n" {
             let edata = cryptobox.encrypt(&password);
 
-            match storage::initialize() {
-                Ok(conn) => {
-                    println!("Database initialized");
-                    let account = build_account(edata);
-                    let _ = storage::add(conn, account).unwrap();
-                },
-                Err(_) => println!("Unable to initialize database")
-            };
+            let conn = storage::initialize()?;
+            println!("Database initialized");
+            let account = build_account(edata);
+            let _ = storage::add(conn, account)?;
+
         } else {
             println!("don't save password");
         }
@@ -51,38 +48,31 @@ fn main() {
 
     if args.accounts {
         println!();
-        match storage::initialize() {
-            Ok(conn) => {
-                let accounts = storage::find_accounts(conn).unwrap();
-                for account in accounts {
-                    println!("{}", account);
-                }
-            },
-            Err(_) => println!("Unable to connect to password database")
+        let conn = storage::initialize()?; 
+        let accounts = storage::find_accounts(conn).unwrap();
+        for account in accounts {
+            println!("{}", account);
         }
         println!();
     } else if args.account.is_some() {
         println!();
         let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
-        match storage::initialize() {
-            Ok(conn) => {
-                let accounts = storage::find_by_account(conn, String::from(args.account.unwrap())).unwrap();
-                for account in accounts {
-                    let encrypted_data = encryption::load_from_encoded(account.password).unwrap();
-                    println!("account name = {}", account.name);
-                    println!("username = {}", account.username);
-                    println!("password = {}", cryptobox.decrypt(encrypted_data).unwrap());
-                    println!()
-                }
-            },
-            Err(_) => println!("Unable to connect to password database")
+        let conn = storage::initialize()?;
+        let accounts = storage::find_by_account(conn, String::from(args.account.unwrap()))?;
+        for account in accounts {
+            let encrypted_data = encryption::load_from_encoded(account.password).unwrap();
+            println!("account name = {}", account.name);
+            println!("username = {}", account.username);
+            println!("password = {}", cryptobox.decrypt(encrypted_data).unwrap());
+            println!()
         }
     }
+    Ok(())
 }
 
 #[derive(StructOpt)]
 #[structopt(rename_all = "kebab-case")]
-struct Cli {
+pub struct Cli {
     #[structopt(short = "g", long, help = "Generates new encryption keys")]
     generate_keys: bool,
 
