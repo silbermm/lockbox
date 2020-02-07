@@ -1,12 +1,12 @@
 extern crate rand;
 extern crate sodiumoxide;
+extern crate lockbox_lib;
 
 use std::io::{self, Write};
 use std::io::ErrorKind;
 use structopt::StructOpt;
+use lockbox_lib::{storage, encryption};
 
-mod storage;
-mod encryption;
 mod password;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
