@@ -1,2 +1,5 @@
 /target
 **/*.rs.bk
+/lockbox_cli/target
+/locbox_lib/target
+/lockbox_server/native/lockbox_interface/target
