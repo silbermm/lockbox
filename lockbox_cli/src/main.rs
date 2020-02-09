@@ -1,5 +1,4 @@
 extern crate rand;
-extern crate sodiumoxide;
 extern crate lockbox_lib;
 
 use std::io::{self, Write};
