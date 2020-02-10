@@ -60,7 +60,7 @@ pub fn generate_keys() -> Result<CryptoBox, io::Error> {
         let priv_file_name = format!("{}{}", home, S_KEY_FILE);
         let nonce_file_name = format!("{}{}", home, NONCE_FILE);
 
-        err_if_keys_exist(vec![
+        let _ = err_if_keys_exist(vec![
             pub_file_name.to_owned(),
             priv_file_name.to_owned(),
             nonce_file_name.to_owned(),
