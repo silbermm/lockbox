@@ -8,8 +8,13 @@ defmodule LockboxServer.MixProject do
       elixir: "~> 1.9",
       compilers: [:rustler] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
-      rustler_crates: [lockbox_interface: []],
-      deps: deps()
+      rustler_crates: [lockbox_interface: [
+        path: rustler_path()
+      ]],
+      deps: deps(),
+      lockfile: Path.expand("mix.lock", __DIR__),
+      deps_path: Path.expand("deps", __DIR__),
+      build_path: Path.expand("_build", __DIR__),
     ]
   end
 
@@ -19,6 +24,11 @@ defmodule LockboxServer.MixProject do
       extra_applications: [:logger],
       mod: {LockboxServer.Application, []}
     ]
+  end
+
+  def rustler_path do
+    path = Path.expand("native", __DIR__)
+    "#{path}/lockbox_interface"
   end
 
   # Run "mix help deps" to learn about dependencies.
