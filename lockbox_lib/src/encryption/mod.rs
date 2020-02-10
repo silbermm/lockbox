@@ -34,7 +34,6 @@ pub struct CryptoBox {
 
 impl CryptoBox {
     pub fn encrypt(&self, data: &str) -> EncryptedData {
-        // convert the string to bytes
         let to_encrypt = data.as_bytes();
         let data = box_::seal(to_encrypt, &self.nonce, &self.pkey, &self.skey);
 
@@ -61,9 +60,9 @@ pub fn generate_keys() -> Result<CryptoBox, io::Error> {
         let nonce_file_name = format!("{}{}", home, NONCE_FILE);
 
         let _ = err_if_keys_exist(vec![
-            pub_file_name.to_owned(),
-            priv_file_name.to_owned(),
-            nonce_file_name.to_owned(),
+                                  pub_file_name.to_owned(),
+                                  priv_file_name.to_owned(),
+                                  nonce_file_name.to_owned(),
         ])?;
 
         let (ourpk, oursk) = box_::gen_keypair();
@@ -138,14 +137,14 @@ pub fn load_from_encoded(encoded: String) -> Result<EncryptedData, io::Error> {
 
 fn map_home_directory<P, Q>(f: P) -> Result<Q, io::Error>
 where
-    P: Fn(&str) -> Result<Q, io::Error>,
+P: Fn(&str) -> Result<Q, io::Error>,
 {
     match dirs::home_dir() {
         Some(home) => f(&home.display().to_string()),
         None => Err(Error::new(
-            ErrorKind::Other,
-            "Unable to locate home directory",
-        )),
+                ErrorKind::Other,
+                "Unable to locate home directory",
+                )),
     }
 }
 
