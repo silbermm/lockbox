@@ -1,0 +1,22 @@
+cargo:rerun-if-env-changed=SODIUM_LIB_DIR
+cargo:rerun-if-env-changed=SODIUM_SHARED
+cargo:rerun-if-env-changed=SODIUM_USE_PKG_CONFIG
+cargo:rerun-if-env-changed=SODIUM_DISABLE_PIE
+OPT_LEVEL = Some("0")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+CRATE_CC_NO_DEFAULTS = None
+DEBUG = Some("true")
+CARGO_CFG_TARGET_FEATURE = Some("fxsr,mmx,sse,sse2")
+cargo:rustc-link-lib=static=sodium
+cargo:rustc-link-search=native=/home/silbermm/Projects/lockbox/lockbox_lib/target/debug/build/libsodium-sys-afd3f71e434dc3c8/out/installed/lib
+cargo:include=/home/silbermm/Projects/lockbox/lockbox_lib/target/debug/build/libsodium-sys-afd3f71e434dc3c8/out/source/libsodium-1.0.18/src/libsodium/include
+cargo:lib=/home/silbermm/Projects/lockbox/lockbox_lib/target/debug/build/libsodium-sys-afd3f71e434dc3c8/out/installed/lib

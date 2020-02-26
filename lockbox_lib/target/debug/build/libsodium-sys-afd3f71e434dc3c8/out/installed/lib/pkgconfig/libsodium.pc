@@ -1,0 +1,12 @@
+prefix=/home/silbermm/Projects/lockbox/lockbox_lib/target/debug/build/libsodium-sys-afd3f71e434dc3c8/out/installed
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libsodium
+Version: 1.0.18
+Description: A modern and easy-to-use crypto library
+
+Libs: -L${libdir} -lsodium
+Libs.private:  -pthread 
+Cflags: -I${includedir}

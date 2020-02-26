@@ -10,9 +10,9 @@ use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
 use std::string::*;
 
-static P_KEY_FILE: &str = "/.lockbox/public_key";
-static S_KEY_FILE: &str = "/.lockbox/secret_key";
-static NONCE_FILE: &str = "/.lockbox/nonce";
+#[path = "../constants/mod.rs"]
+mod constants;
+use constants::{P_KEY_FILE, S_KEY_FILE, NONCE_FILE};
 
 #[derive(Debug)]
 pub struct EncryptedData {

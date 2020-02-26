@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let conn = storage::initialize()?;
             println!("Database initialized");
             let account = build_account(edata);
-            let _ = storage::add(conn, account)?;
+            let _ = storage::account::add(conn, account)?;
 
         } else {
             println!("don't save password");
@@ -47,8 +47,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if args.accounts {
         println!();
-        let conn = storage::initialize()?; 
-        let (_, accounts) = storage::find_accounts(conn).unwrap();
+        let conn = storage::initialize()?;
+        let (_, accounts) = storage::account::find_all(conn).unwrap();
         for account in accounts {
             println!("{}", account);
         }
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!();
         let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
         let conn = storage::initialize()?;
-        let (_, accounts) = storage::find_by_account(conn, String::from(args.account.unwrap()))?;
+        let (_, accounts) = storage::account::find(conn, String::from(args.account.unwrap()))?;
         for account in accounts {
             let encrypted_data = encryption::load_from_encoded(account.password).unwrap();
             println!("account name = {}", account.name);
@@ -88,7 +88,7 @@ pub struct Cli {
 
 }
 
-fn build_account(e: encryption::EncryptedData) -> storage::Account {
+fn build_account(e: encryption::EncryptedData) -> storage::account::Account {
     print!("What account is this for (i.e. google.com)? ");
     io::stdout().flush().unwrap();
 
@@ -101,7 +101,7 @@ fn build_account(e: encryption::EncryptedData) -> storage::Account {
     let mut username = String::new();
     let _ = io::stdin().read_line(&mut username);
 
-    storage::Account {
+    storage::account::Account {
         name: account.trim().to_string(),
         username: username.trim().to_string(),
         password: e.to_string()
