@@ -28,7 +28,7 @@ defmodule LockboxServer.DataStore do
         end)
         {:ok, devices}
       other -> 
-        Logger.debug("Got a different result, #{inspect other}")
+        Logger.error("Got a different result, #{inspect other}")
         :empty
     end
   end

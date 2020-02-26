@@ -1,5 +1,6 @@
 defmodule LockboxServer.Cluster.Connection do
   use GenServer
+  require Logger
   alias LockboxServer.DataStore
   alias __MODULE__
 
@@ -19,23 +20,29 @@ defmodule LockboxServer.Cluster.Connection do
 
   def handle_call({:connect, n, pub}, _from, state) do
     if(node_trusted?(n, pub, state)) do
+      Logger.info("node is trusted")
       devices = [{n, pub} | state.trusted_devices]
       state = %Connection{trusted_devices: devices}
       {:reply, Node.connect(n), state}
     else
-      GenServer.cast({Genex.Core.Connection, Node.self()}, {:trust, n, "1234", false})
+      Logger.info("node is NOT trusted")
+      GenServer.cast(__MODULE__, {:trust, n, "1234", true})
+      devices = [{n, pub} | state.trusted_devices]
+      state = %Connection{trusted_devices: devices}
       {:reply, Node.connect(n), state}
     end
   end
 
   def handle_cast({:trust, n, pub, replicate?}, state) do
+    Logger.info("adding node to datastore")
     DataStore.add_trusted_device(n, pub)
     if (replicate?) do
-      IO.puts("replicating to #{n}")
-      GenServer.cast({Genex.Core.Connection, n}, {:trust, Node.self(), "1234", false})
+      Logger.info("replicating to #{n}")
+      GenServer.cast({__MODULE__, n}, {:trust, Node.self(), "1234", false})
     end
-    st = state.trusted_devices ++ {n, pub}
-    {:noreply, %{state | trusted_devices: st}}
+    devices = [{n, pub} | state.trusted_devices]
+    state = %Connection{trusted_devices: devices}
+    {:noreply, state}
   end
 
   def connect([n], public_key) do
