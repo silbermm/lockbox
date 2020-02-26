@@ -23,17 +23,17 @@ defmodule LockboxServer.Cluster.Connection do
       state = %Connection{trusted_devices: devices}
       {:reply, Node.connect(n), state}
     else
-      IO.inspect("NODE NOT TRUSTED (#{n})", label: "CONNECT_CLIENT")
-      {:reply, false, state}
+      GenServer.cast({Genex.Core.Connection, Node.self()}, {:trust, n, "1234", false})
+      {:reply, Node.connect(n), state}
     end
   end
 
   def handle_cast({:trust, n, pub, replicate?}, state) do
     DataStore.add_trusted_device(n, pub)
-    #if (replicate?) do
-      #IO.puts("replicating to #{n}")
-       #GenServer.cast({Genex.Core.Connection, :b@silbermm}, {:trust, :a@silbermm, "1234", false})
-    #end
+    if (replicate?) do
+      IO.puts("replicating to #{n}")
+      GenServer.cast({Genex.Core.Connection, n}, {:trust, Node.self(), "1234", false})
+    end
     st = state.trusted_devices ++ {n, pub}
     {:noreply, %{state | trusted_devices: st}}
   end
