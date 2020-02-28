@@ -25,6 +25,11 @@ defmodule LockboxServer.Cluster.Connection do
       state = %Connection{trusted_devices: devices}
       {:reply, Node.connect(n), state}
     else
+      # Eventually we may want to do something different 
+      # when the node isn't yet trusted.
+      # Options include
+      #   ask the user to trust the connection
+      #   look at a file that has predefined trusted clients
       Logger.info("node is NOT trusted")
       GenServer.cast(__MODULE__, {:trust, n, "1234", true})
       devices = [{n, pub} | state.trusted_devices]

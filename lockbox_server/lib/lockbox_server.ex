@@ -3,16 +3,9 @@ defmodule LockboxServer do
   Documentation for LockboxServer.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> LockboxServer.hello()
-      :world
-
-  """
-  def hello do
-    :world
+  def sync_with_peer(peer, public_key) do
+    # get list of accounts with passwords encrypted with peers public key
+    # send that list over to the peer
+    GenServer.call({Syncronizer, peer}, {:sync, []})
   end
 end
