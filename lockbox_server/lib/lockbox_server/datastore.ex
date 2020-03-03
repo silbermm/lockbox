@@ -18,7 +18,6 @@ defmodule LockboxServer.DataStore do
     end
   end
 
-  # TODO: this query does NOT work!
   def get_all_trusted_devices do
     case :mnesia.transaction(fn -> :mnesia.select(@trusted_device_table, [{:_,[],[:"$_"]}]) end) do
       {:atomic, []} -> :empty

@@ -43,11 +43,11 @@ defmodule LockboxServer.Cluster.Connection do
   end
 
   def handle_cast({:trust, n, pub, nonce, replicate?}, state) do
-    Logger.info("adding node to datastore")
+    Logger.info("adding node #{n} to datastore")
     DataStore.add_trusted_device(n, pub, nonce)
     if (replicate?) do
       Logger.info("replicating to #{n}")
-      GenServer.cast({__MODULE__, n}, {:trust, Node.self(), "local pub key", "local nonce", false})
+      GenServer.cast({__MODULE__, n}, {:trust, Node.self(), state.self_pubkey, state.self_nonce, false})
     end
     devices = [{n, pub} | state.trusted_devices]
     state = %Connection{trusted_devices: devices}
