@@ -66,19 +66,19 @@ pub fn generate_keys() -> Result<CryptoBox, io::Error> {
         ])?;
 
         let (ourpk, oursk) = box_::gen_keypair();
+        let nonce = box_::gen_nonce();
 
         let mut pub_file = File::create(pub_file_name)?;
-        let sodiumoxide::crypto::box_::PublicKey(bytes) = ourpk;
-        pub_file.write_all(&bytes)?;
+        let pub_file_contents = base64::encode(&ourpk.as_ref());
+        pub_file.write_all(&pub_file_contents.as_bytes())?;
 
         let mut private_file = File::create(priv_file_name)?;
-        let sodiumoxide::crypto::box_::SecretKey(sbytes) = oursk;
-        private_file.write_all(&sbytes)?;
+        let priv_file_contents = base64::encode(&oursk.as_ref());
+        private_file.write_all(&priv_file_contents.as_bytes())?;
 
-        let nonce = box_::gen_nonce();
         let mut nonce_file = File::create(nonce_file_name)?;
-        let sodiumoxide::crypto::box_::Nonce(nbytes) = nonce;
-        nonce_file.write_all(&nbytes)?;
+        let nonce_file_contents = base64::encode(&nonce.as_ref());
+        nonce_file.write_all(&nonce_file_contents.as_bytes())?;
 
         Ok(CryptoBox {
             pkey: ourpk,
@@ -91,38 +91,54 @@ pub fn generate_keys() -> Result<CryptoBox, io::Error> {
 pub fn load_keys() -> Result<CryptoBox, io::Error> {
     map_home_directory(|home| -> Result<CryptoBox, io::Error> {
         let p_file = format!("{}{}", home, P_KEY_FILE);
-
         let mut file = File::open(p_file)?;
         let mut buffer = Vec::<u8>::new();
-        file.read_to_end(&mut buffer)?;
+        file.read_to_end(&mut buffer)?; 
 
-        let mut pubkey_bytes = [0u8; PUBLICKEYBYTES];
-        for i in 0..PUBLICKEYBYTES {
-            pubkey_bytes[i] = buffer[i];
-        }
-        let pkey = PublicKey(pubkey_bytes);
+        let pkey = match base64::decode(&buffer) {
+            Ok(res) => {
+                let mut pubkey_bytes = [0u8; PUBLICKEYBYTES];
+                for i in 0..PUBLICKEYBYTES {
+                    pubkey_bytes[i] = res[i];
+                }
+                Ok(PublicKey(pubkey_bytes))
+            }
+            _ => Err(Error::new(ErrorKind::Other, "Unable to read in public key"))
+        }?;
 
         let s_file = format!("{}{}", home, S_KEY_FILE);
         let mut file = File::open(s_file)?;
-        let mut buffer = Vec::<u8>::new();
-        file.read_to_end(&mut buffer)?;
+        let mut sbuffer = Vec::<u8>::new();
+        file.read_to_end(&mut sbuffer)?;
 
-        let mut secretkey_bytes = [0u8; SECRETKEYBYTES];
-        for i in 0..SECRETKEYBYTES {
-            secretkey_bytes[i] = buffer[i];
-        }
-        let skey = SecretKey(secretkey_bytes);
+        let skey = match base64::decode(&sbuffer) {
+            Ok(res) => {
+                let mut secretkey_bytes = [0u8; SECRETKEYBYTES];
+                for i in 0..SECRETKEYBYTES {
+                    secretkey_bytes[i] = res[i];
+                }
+                Ok(SecretKey(secretkey_bytes))
+            }
+            _ => Err(Error::new(ErrorKind::Other, "Unable to read in secret key"))
+        }?;
+
 
         let n_file = format!("{}{}", home, NONCE_FILE);
         let mut file = File::open(n_file)?;
-        let mut buffer = Vec::<u8>::new();
-        file.read_to_end(&mut buffer)?;
+        let mut nbuffer = Vec::<u8>::new();
+        file.read_to_end(&mut nbuffer)?;
 
-        let mut nonce_bytes = [0u8; NONCEBYTES];
-        for i in 0..NONCEBYTES {
-            nonce_bytes[i] = buffer[i];
-        }
-        let nonce = Nonce(nonce_bytes);
+
+        let nonce = match base64::decode(&nbuffer) {
+            Ok(res) => {
+                let mut nonce_bytes = [0u8; NONCEBYTES];
+                for i in 0..NONCEBYTES {
+                    nonce_bytes[i] = res[i];
+                }
+                Ok(Nonce(nonce_bytes))
+            }
+            Err(_) => Err(Error::new(ErrorKind::Other, "Unable to read in nonce"))
+        }?;
 
         Ok(CryptoBox { pkey, skey, nonce })
     })
