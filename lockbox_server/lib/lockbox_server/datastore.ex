@@ -23,8 +23,8 @@ defmodule LockboxServer.DataStore do
     case :mnesia.transaction(fn -> :mnesia.select(@trusted_device_table, [{:_,[],[:"$_"]}]) end) do
       {:atomic, []} -> :empty
       {:atomic, [_|_] = data} ->
-        devices = Enum.map(data, fn {@trusted_device_table, name, public_key} ->
-          {name, public_key}
+        devices = Enum.map(data, fn {@trusted_device_table, name, public_key, nonce} ->
+          {name, public_key, nonce}
         end)
         {:ok, devices}
       other -> 

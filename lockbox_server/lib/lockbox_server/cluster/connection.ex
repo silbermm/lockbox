@@ -18,7 +18,7 @@ defmodule LockboxServer.Cluster.Connection do
 
     # get all trusted devices and set in state
     all_trusted = case DataStore.get_all_trusted_devices() do
-      {:ok, { _, public_key }} -> public_key
+      {:ok, { _, public_key, _ }} -> public_key
       _ -> []
     end
     {:ok, %Connection{trusted_devices: all_trusted, self_pubkey: pub_key, self_nonce: nonce}}
