@@ -13,7 +13,7 @@ build-cli: ## build the cli binary
 	$(CARGO) build --manifest-path $(CLI_PATH)/Cargo.toml --release
 
 build-server: ## build the server
-	MIX_ENV=release $(MIX_CMD) deps.get --only-release
-	MIX_ENV=release $(MIX_CMD) release
+	MIX_ENV=prod $(MIX_CMD) deps.get --only-release
+	MIX_ENV=prod $(MIX_CMD) release
 
 all: build-cli build-server ## build all

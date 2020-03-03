@@ -32,8 +32,8 @@ defmodule LockboxServer.Cluster.Strategy do
 
   All failures are logged.
   """
-  @spec connect_nodes(topology, mfa_tuple, mfa_tuple, [atom()], binary) :: :ok | {:error, bad_nodes}
-  def connect_nodes(topology, {_, _, _} = connect, {_, _, _} = list_nodes, nodes, public_key)
+  @spec connect_nodes(topology, mfa_tuple, mfa_tuple, [atom()], binary, binary) :: :ok | {:error, bad_nodes}
+  def connect_nodes(topology, {_, _, _} = connect, {_, _, _} = list_nodes, nodes, public_key, nonce)
   when is_list(nodes) do
     {connect_mod, connect_fun, connect_args} = connect
     {list_mod, list_fun, list_args} = list_nodes
@@ -49,7 +49,7 @@ defmodule LockboxServer.Cluster.Strategy do
         fargs = connect_args ++ [n]
         ensure_exported!(connect_mod, connect_fun, length(fargs))
 
-        case LockboxServer.Cluster.Connection.connect(fargs, public_key) do
+        case LockboxServer.Cluster.Connection.connect(fargs, public_key, nonce) do
           true ->
             Cluster.Logger.info(topology, "connected to #{inspect(n)}")
             acc

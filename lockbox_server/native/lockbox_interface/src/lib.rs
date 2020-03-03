@@ -2,14 +2,25 @@ extern crate lockbox_lib;
 
 use rustler::{Encoder, Env, Error, Term};
 use rustler::types::atom::{ok, error};
-use lockbox_lib::{encryption, storage};
+use lockbox_lib::{encryption, storage, constants};
 
 rustler::rustler_export_nifs! {
     "Elixir.Lockbox.Lib",
     [
         ("decrypt", 1, decrypt),
+        ("public_key_path", 0, public_key_path),
+        ("nonce_path", 0, nonce_path),
     ],
     None
+}
+
+
+fn public_key_path<'a>(env: Env<'a>, _args: &[Term<'a>]) -> Result<Term<'a>, Error> {
+    Ok((ok(), constants::P_KEY_FILE).encode(env))
+}
+
+fn nonce_path<'a>(env: Env<'a>, _args: &[Term<'a>]) -> Result<Term<'a>, Error> {
+    Ok((ok(), constants::NONCE_FILE).encode(env))
 }
 
 fn decrypt<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, Error> {

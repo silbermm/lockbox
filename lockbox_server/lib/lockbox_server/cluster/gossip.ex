@@ -47,6 +47,7 @@ defmodule LockboxServer.Cluster.Gossip do
   import Cluster.Logger
 
   alias Cluster.Strategy.State
+  alias Lockbox.Lib
 
   @default_port 45892
   @default_addr {0, 0, 0, 0}
@@ -54,7 +55,8 @@ defmodule LockboxServer.Cluster.Gossip do
   @sol_socket 0xFFFF
   @so_reuseport 0x0200
 
-  @public_key "1234" 
+  @public_key File.read!(Lib.public_key_path!())
+  @nonce File.read!(Lib.nonce_path!())
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args)
@@ -91,7 +93,7 @@ defmodule LockboxServer.Cluster.Gossip do
     {:ok, socket} = :gen_udp.open(port, options)
 
     secret = Keyword.get(config, :secret, nil)
-    state = %State{state | :meta => {multicast_addr, port, socket, secret, @public_key}}
+    state = %State{state | :meta => {multicast_addr, port, socket, secret, @public_key, @nonce}}
     {:ok, state, 0}
   end
 
@@ -126,7 +128,7 @@ defmodule LockboxServer.Cluster.Gossip do
   @impl true
   def handle_info(:timeout, state), do: handle_info(:heartbeat, state)
 
-  def handle_info(:heartbeat, %State{meta: {multicast_addr, port, socket, _, _}} = state) do
+  def handle_info(:heartbeat, %State{meta: {multicast_addr, port, socket, _, _, _}} = state) do
     debug(state.topology, "heartbeat")
     :gen_udp.send(socket, multicast_addr, port, heartbeat(node(), state))
     Process.send_after(self(), :heartbeat, :rand.uniform(5_000))
@@ -136,7 +138,7 @@ defmodule LockboxServer.Cluster.Gossip do
   # Handle received heartbeats
   def handle_info(
         {:udp, _socket, _ip, _port, <<"heartbeat::", _::binary>> = packet},
-        %State{meta: {_, _, _, secret, _}} = state
+        %State{meta: {_, _, _, secret, _, _}} = state
       )
       when is_nil(secret) do
     handle_heartbeat(state, packet)
@@ -145,7 +147,7 @@ defmodule LockboxServer.Cluster.Gossip do
 
   def handle_info(
         {:udp, _socket, _ip, _port, <<iv::binary-size(16)>> <> ciphertext},
-        %State{meta: {_, _, _, secret, _}} = state
+        %State{meta: {_, _, _, secret, _, _}} = state
       )
       when is_binary(secret) do
     case decrypt(ciphertext, secret, iv) do
@@ -162,19 +164,19 @@ defmodule LockboxServer.Cluster.Gossip do
     {:noreply, state}
   end
 
-  def terminate(_type, _reason, %State{meta: {_, _, socket, _, _}}) do
+  def terminate(_type, _reason, %State{meta: {_, _, socket, _, _, _}}) do
     :gen_udp.close(socket)
     :ok
   end
 
   # Construct iodata representing packet to send
-  defp heartbeat(node_name, %State{meta: {_, _, _, secret, public_key}})
+  defp heartbeat(node_name, %State{meta: {_, _, _, secret, public_key, nonce}})
        when is_nil(secret) do
-    ["heartbeat::", :erlang.term_to_binary(%{node: node_name, public_key: public_key})]
+    ["heartbeat::", :erlang.term_to_binary(%{node: node_name, public_key: public_key, nonce: nonce})]
   end
 
-  defp heartbeat(node_name, %State{meta: {_, _, _, secret, public_key}}) when is_binary(secret) do
-    message = "heartbeat::" <> :erlang.term_to_binary(%{node: node_name, public_key: public_key})
+  defp heartbeat(node_name, %State{meta: {_, _, _, secret, public_key, nonce}}) when is_binary(secret) do
+    message = "heartbeat::" <> :erlang.term_to_binary(%{node: node_name, public_key: public_key, nonce: nonce})
     {:ok, iv, msg} = encrypt(message, secret)
 
     [iv, msg]
@@ -194,9 +196,9 @@ defmodule LockboxServer.Cluster.Gossip do
       %{node: ^self, public_key: _} ->
         :ok
 
-      %{node: n, public_key: public_key} when is_atom(n) ->
-        debug(state.topology, "received heartbeat from #{n} and public_key #{public_key}")
-       	LockboxServer.Cluster.Strategy.connect_nodes(topology, connect, list_nodes, [n], public_key)
+      %{node: n, public_key: public_key, nonce: nonce} when is_atom(n) ->
+        debug(state.topology, "received heartbeat from #{n} and public_key #{public_key} and nonce #{nonce}")
+       	LockboxServer.Cluster.Strategy.connect_nodes(topology, connect, list_nodes, [n], public_key, nonce)
         :ok
 
       _ ->

@@ -13,8 +13,8 @@ defmodule LockboxServer.DataStore do
   def get_trusted_device(name) do
     case :mnesia.transaction(fn -> :mnesia.read({@trusted_device_table, name}) end) do
       {:atomic, []} -> :empty
-      {:atomic, [{@trusted_device_table, name, public_key}]} -> {:ok, {name, public_key}}
-      other -> :empty
+      {:atomic, [{@trusted_device_table, name, public_key, nonce}]} -> {:ok, {name, public_key, nonce}}
+      _other -> :empty
     end
   end
 
@@ -33,14 +33,14 @@ defmodule LockboxServer.DataStore do
     end
   end
 
-  def add_trusted_device(name, public_key) do
-    :mnesia.transaction(fn -> :mnesia.write({@trusted_device_table, name, public_key}) end)
+  def add_trusted_device(name, public_key, nonce) do
+    :mnesia.transaction(fn -> :mnesia.write({@trusted_device_table, name, public_key, nonce}) end)
   end
 
   defp create_trusted_devices_table() do
     :mnesia.create_table(
       @trusted_device_table,
-      attributes: [:name, :public_key],
+      attributes: [:name, :public_key, :nonce],
       disc_copies: [node()]
     )
   end
