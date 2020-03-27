@@ -1,10 +1,10 @@
-extern crate rand;
 extern crate lockbox_lib;
+extern crate rand;
 
-use std::io::{self, Write};
+use lockbox_lib::{encryption, storage};
 use std::io::ErrorKind;
+use std::io::{self, Write};
 use structopt::StructOpt;
-use lockbox_lib::{storage, encryption};
 
 mod password;
 
@@ -32,14 +32,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut input = String::new();
         let _ = io::stdin().read_line(&mut input);
 
-        if input == "\n" || input == "Y\n"  || input == "y\n" {
+        if input == "\n" || input == "Y\n" || input == "y\n" {
             let edata = cryptobox.encrypt(&password);
 
             let conn = storage::initialize()?;
             println!("Database initialized");
             let account = build_account(edata);
             let _ = storage::account::add(conn, account)?;
-
         } else {
             println!("don't save password");
         }
@@ -75,17 +74,22 @@ pub struct Cli {
     #[structopt(short = "g", long, help = "Generates new encryption keys")]
     generate_keys: bool,
 
-    #[structopt(short = "p", long = "generate-password", help = "Generates a new password")]
+    #[structopt(
+        short = "p",
+        long = "generate-password",
+        help = "Generates a new password"
+    )]
     generate_password: bool,
-
 
     #[structopt(short = "a", long = "show-accounts", help = "Show saved accounts")]
     accounts: bool,
 
-    #[structopt(short = "s", long = "show-password", help = "Show password for a specific account")]
+    #[structopt(
+        short = "s",
+        long = "show-password",
+        help = "Show password for a specific account"
+    )]
     account: Option<String>,
-
-
 }
 
 fn build_account(e: encryption::EncryptedData) -> storage::account::Account {
@@ -104,6 +108,7 @@ fn build_account(e: encryption::EncryptedData) -> storage::account::Account {
     storage::account::Account {
         name: account.trim().to_string(),
         username: username.trim().to_string(),
-        password: e.to_string()
+        password: e.to_string(),
+        updated_at: None,
     }
 }

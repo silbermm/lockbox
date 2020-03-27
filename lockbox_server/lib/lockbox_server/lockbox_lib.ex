@@ -4,6 +4,8 @@ defmodule Lockbox.Lib do
   def public_key_path(), do: :erlang.nif_error(:nif_not_loaded)
   def nonce_path(), do: :erlang.nif_error(:nif_not_loaded)
 
+  def get_passwords_for_public_key(_public_key), do: :erlang.nif_error(:nif_not_loaded)
+
   def decrypt(_arg1), do: :erlang.nif_error(:nif_not_loaded)
 
   def public_key_path!() do

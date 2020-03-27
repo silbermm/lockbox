@@ -9,6 +9,7 @@ pub struct Account {
     pub name: String,
     pub username: String,
     pub password: String,
+    pub updated_at: Option<String>,
 }
 
 pub fn add(conn: Connection, account: Account) -> Result<(Connection, usize)> {
@@ -37,6 +38,25 @@ pub fn find_all(conn: Connection) -> Result<(Connection, std::vec::Vec<String>)>
     Ok((conn, res))
 }
 
+pub fn all(conn: Connection) -> Result<(Connection, std::vec::Vec<Account>)> {
+    let res = {
+        let mut stmt = conn.prepare(
+         "SELECT account, username, password, updated_at from passwords"
+        )?;
+
+        let accounts = stmt.query_map(NO_PARAMS, |row| {
+            Ok(Account {
+                name: row.get(0)?,
+                username: row.get(1)?,
+                password: row.get(2)?,
+                updated_at: Some(row.get(3)?)
+             })
+        })?;
+        accounts.map(|a| a.unwrap()).collect()
+    };
+    Ok((conn, res))
+}
+
 pub fn find(conn: Connection, account_name: String) -> Result<(Connection, std::vec::Vec<Account>)> {
     let res = {
         let mut stmt = conn.prepare(
@@ -47,6 +67,7 @@ pub fn find(conn: Connection, account_name: String) -> Result<(Connection, std::
                 name: row.get(0)?,
                 username: row.get(1)?,
                 password: row.get(2)?,
+                updated_at: None,
             })
         })?;
         passwords.map(|a| a.unwrap()).collect()
