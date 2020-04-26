@@ -12,6 +12,24 @@ pub struct Account {
     pub updated_at: Option<String>,
 }
 
+impl Account {
+    pub fn to_string(&self) -> String {
+        let d = match &self.updated_at {
+            Some(date) => date,
+            None => ""
+        };
+        format!("{}:{}:{}:{}", &self.name, &self.username, &self.password, d)
+    }
+
+    pub fn update_password(self, new_password: String) -> Account {
+        Account {
+            password: new_password,
+            ..self
+        }
+    }
+}
+
+
 pub fn add(conn: Connection, account: Account) -> Result<(Connection, usize)> {
     let res = conn.execute(
         "INSERT INTO passwords (account, username, password, inserted_at, updated_at) values (?1, ?2, ?3, datetime('now'), datetime('now'))",

@@ -19,7 +19,6 @@ defmodule LockboxServer.Application do
     children = [
       {Cluster.Supervisor, [topologies, [name: Lockbox.Supervisor]]}, 
       {LockboxServer.Cluster.Connection, []},
-      {LockboxServer.Syncronizer, []},
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

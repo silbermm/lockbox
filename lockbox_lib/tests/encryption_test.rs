@@ -5,7 +5,7 @@ use lockbox_lib::{encryption};
 #[test]
 fn test_encryption() -> Result<(), std::io::Error> {
     match encryption::generate_keys()  {
-        _ => { 
+        _ => {
             let cryptobox = encryption::load_keys().expect("Unable to load encryption keys");
             let to_encrypt = String::from("somerandompassword");
             let edata = cryptobox.encrypt(&to_encrypt);

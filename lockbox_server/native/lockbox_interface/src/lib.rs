@@ -3,7 +3,7 @@ extern crate lockbox_lib;
 use rustler::{Encoder, Env, Error, Term};
 use rustler::types::atom::{ok, error};
 use lockbox_lib::{encryption, storage, constants};
-use rusqlite::{Connection};
+use std::collections::HashMap;
 
 rustler::rustler_export_nifs! {
     "Elixir.Lockbox.Lib",
@@ -27,16 +27,20 @@ fn nonce_path<'a>(env: Env<'a>, _args: &[Term<'a>]) -> Result<Term<'a>, Error> {
 
 fn passwords_for_public_key<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, Error> {
     let public_key: String = args[0].decode()?;
-    match storage::initialize() {
+    let passwords = match storage::initialize() {
         Ok(conn) => {
-            let current_passwords = storage::account::all(conn);
-            let new_passwords = current_passwords.map(|x| {
-                
-            }).collect();
-            Ok((ok(), new_passwords).encode(env))
-        }
-        Err(_) => Ok((error(), "Unable to get passwords from the database").encode(env))
-    }
+            match storage::account::all(conn) {
+                Ok((_, current_passwords)) => {
+                    current_passwords.into_iter().map(|x| {
+                        x.to_string()
+                    }).collect()
+                },
+                Err(_) => vec!()
+            }
+        },
+        Err(_) => vec!()
+    };
+    Ok((ok(), passwords).encode(env))
 }
 
 fn decrypt<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, Error> {
@@ -49,16 +53,5 @@ fn decrypt<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, Error> {
             Err(err) => Ok((error(), err.to_owned()).encode(env))
         },
         Err(_) => Ok((error(), "Unable to decode password").encode(env))
-    }
-}
-
-fn map_accounts(accounts_from_db: Result<(Connection, std::vec::Vec<storage::account::Account>)>) -> std::vec::Vec<storage::account::Account> {
-    match accounts_from_db {
-        Ok(_conn, accounts) => {
-            let new_passwords = current_passwords.map(|x| {
-
-            }).collect();
-        },
-        Err(_) => std::vec::Vec<storage::account::Account>
     }
 }
